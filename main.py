@@ -38,7 +38,7 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str):
 
     def generate_unique_username():
         while True:
-            name = f"{random.choice(colors)}{random.choice(animals)}{random.randint(100, 999)}"
+            name = f"{random.choice(colors)}_{random.choice(animals)}_{random.randint(100, 999)}"
             if name not in room["used_names"]:
                 room["used_names"].add(name)
                 return name

@@ -3,6 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 import random
 import uuid
 
+colors = ["Red", "Blue", "Green", "Yellow", "Purple", "Orange", "Black", "White", "Pink", "Gray"]
+animals = ["Tiger", "Eagle", "Shark", "Wolf", "Panda", "Falcon", "Fox", "Dolphin", "Hawk", "Bear"]
+
+
 app = FastAPI()
 
 # Allow frontend to connect (adjust if needed)
@@ -23,7 +27,7 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str):
     await websocket.accept()
     
     if room_code not in rooms:
-        rooms[room_code] = {"users": {}, "options": {}, "locked": False, "choice": None}
+        rooms[room_code] = {"users": {}, "options": {}, "locked": False, "choice": None, "used_names": set()}
     
     room = rooms[room_code]
 
@@ -31,8 +35,15 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str):
     forwarded_ip = websocket.headers.get("X-Forwarded-For")  # If behind a reverse proxy
 
     ip_address = forwarded_ip.split(",")[0] if forwarded_ip else client_ip
-    room["users"][user_id] = {'socket': websocket, 'locked': False, 'ip_address': ip_address}
 
+    def generate_unique_username():
+        while True:
+            name = f"{random.choice(colors)}{random.choice(animals)}{random.randint(100, 999)}"
+            if name not in room["used_names"]:
+                room["used_names"].add(name)
+                return name
+
+    room["users"][user_id] = {'socket': websocket, 'locked': False, 'ip_address': ip_address, 'name': generate_unique_username()}
 
 
     try:
@@ -68,7 +79,7 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str):
     except WebSocketDisconnect:
         del room['users'][user_id]
         for user in room["users"].values():
-            await user['socket'].send_json({"action": "update", "options": room["options"], "locked": room["locked"], "connected_users": [user_values["ip_address"] for user_values in room["users"].values()]})
+            await user['socket'].send_json({"action": "update", "options": room["options"], "locked": room["locked"], "connected_users": [user_values["name"] for user_values in room["users"].values()]})
         if not room["users"]:
             del rooms[room_code]
 

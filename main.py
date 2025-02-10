@@ -26,7 +26,14 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str):
         rooms[room_code] = {"users": {}, "options": {}, "locked": False, "choice": None}
     
     room = rooms[room_code]
-    room["users"][user_id] = {'socket': websocket, 'locked': False}
+
+    client_ip = websocket.client.host  # Direct client IP
+    forwarded_ip = websocket.headers.get("X-Forwarded-For")  # If behind a reverse proxy
+
+    ip_address = forwarded_ip.split(",")[0] if forwarded_ip else client_ip
+    room["users"][user_id] = {'socket': websocket, 'locked': False, 'ip_address': ip_address}
+
+
 
     try:
         while True:
@@ -55,10 +62,13 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str):
                     room["choice"] = chosen
                 
             for user in room["users"].values():
-                await user['socket'].send_json({"action": "update", "options": room["options"], "locked": room["locked"]})
+                await user['socket'].send_json({"action": "update", "options": room["options"], "locked": room["locked"], "connected_users": [user_values["ip_address"] for user_values in room["users"].values()]})
                 if room["locked"]: await user['socket'].send_json({"action": "result", "choice": room["choice"]})
 
     except WebSocketDisconnect:
         del room['users'][user_id]
+        for user in room["users"].values():
+            await user['socket'].send_json({"action": "update", "options": room["options"], "locked": room["locked"], "connected_users": [user_values["ip_address"] for user_values in room["users"].values()]})
         if not room["users"]:
             del rooms[room_code]
+

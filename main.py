@@ -73,7 +73,7 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str):
                     room["choice"] = chosen
                 
             for user in room["users"].values():
-                await user['socket'].send_json({"action": "update", "options": room["options"], "locked": room["locked"], "connected_users": [user_values["ip_address"] for user_values in room["users"].values()]})
+                await user['socket'].send_json({"action": "update", "options": room["options"], "locked": room["locked"], "connected_users": [user_values["name"] for user_values in room["users"].values()]})
                 if room["locked"]: await user['socket'].send_json({"action": "result", "choice": room["choice"]})
 
     except WebSocketDisconnect:
